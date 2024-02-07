@@ -26,8 +26,8 @@ const (
 
 type ghApp struct {
 	privateKeyPath string
-	appID          int
-	installationID int
+	appID          int64
+	installationID int64
 	webhookSecret  string
 }
 
@@ -56,11 +56,11 @@ func getConfig() (*config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Cannot parse the %s environment variable to int: %w", port_name, err)
 	}
-	appID, err := strconv.Atoi(os.Getenv(gh_app_id_name))
+	appID, err := strconv.ParseInt(os.Getenv(gh_app_id_name), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot parse the %s environment variable to int: %w", gh_app_id_name, err)
 	}
-	installationID, err := strconv.Atoi(os.Getenv(gh_app_installation_id_name))
+	installationID, err := strconv.ParseInt(os.Getenv(gh_app_installation_id_name), 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot parse the %s environment variable to int: %w", gh_app_installation_id_name, err)
 	}
@@ -73,6 +73,29 @@ func getConfig() (*config, error) {
 			webhookSecret:  os.Getenv(gh_app_webhook_secret_name),
 		},
 	}, nil
+}
+
+func checkPipeline(ctx context.Context, client *github.Client, repo *github.Repository, cSuite *github.CheckSuite) error {
+	status := "queued"
+	title := "Tekton CI check"
+	summary := "Tekton CI summary"
+	_, _, err := client.Checks.CreateCheckRun(ctx,
+		*repo.Owner.Login,
+		*repo.Name,
+		github.CreateCheckRunOptions{
+			Name:      "Tekton CI check",
+			HeadSHA:   *cSuite.HeadSHA,
+			Status:    &status,
+			StartedAt: &github.Timestamp{Time: time.Now()},
+			Output: &github.CheckRunOutput{
+				Title:   &title,
+				Summary: &summary,
+			},
+		})
+	if err != nil {
+		return fmt.Errorf("cannot create checkrun: %w", err)
+	}
+	return nil
 }
 
 func main() {
@@ -89,8 +112,8 @@ func main() {
 	tr := http.DefaultTransport
 
 	itr, err := ghinstallation.NewKeyFromFile(tr,
-		int64(conf.ghApp.appID),
-		int64(conf.ghApp.installationID),
+		conf.ghApp.appID,
+		conf.ghApp.installationID,
 		conf.ghApp.privateKeyPath,
 	)
 	if err != nil {
@@ -102,13 +125,13 @@ func main() {
 		slog.Debug("HTTP request received")
 		payload, err := github.ValidatePayload(r, []byte(conf.ghApp.webhookSecret))
 		if err != nil {
-			slog.Warn("Invalid payload", "err", err)
+			slog.Error("Invalid payload", "err", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		event, err := github.ParseWebHook(github.WebHookType(r), payload)
 		if err != nil {
-			slog.Warn("Webhook event cannot be parsed", "err", err)
+			slog.Error("Webhook event cannot be parsed", "err", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -116,27 +139,11 @@ func main() {
 		slog.Debug("event received", "event", event)
 		switch event := event.(type) {
 		case *github.CheckSuiteEvent:
-			repo := event.GetRepo()
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
-			status := "queued"
-			title := "Tekton CI check"
-			summary := "Tekton CI summary"
-			_, _, err := client.Checks.CreateCheckRun(ctx,
-				*repo.Owner.Login,
-				*repo.Name,
-				github.CreateCheckRunOptions{
-					Name:      "Tekton CI check",
-					HeadSHA:   *event.CheckSuite.HeadSHA,
-					Status:    &status,
-					StartedAt: &github.Timestamp{Time: time.Now()},
-					Output: &github.CheckRunOutput{
-						Title: &title,
-						Summary: &summary,
-					},
-				})
+			err := checkPipeline(ctx, client, event.GetRepo(), event.CheckSuite)
 			if err != nil {
-				slog.Warn("Cannot create checkrun", "err", err)
+				slog.Error("checkPipeline failed", "err", err)
 				http.Error(w, err.Error(), http.StatusServiceUnavailable)
 				return
 			}
