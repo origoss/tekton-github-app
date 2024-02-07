@@ -1,14 +1,17 @@
 package main
 
 import (
+	// "context"
 	"fmt"
-	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v58/github"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	// "time"
+
+	"github.com/bradleyfalzon/ghinstallation/v2"
+	"github.com/google/go-github/v58/github"
 )
 
 var logLevel = new(slog.LevelVar)
@@ -83,6 +86,19 @@ func main() {
 	}
 	conf.logValues()
 
+
+	tr := http.DefaultTransport
+
+	itr, err := ghinstallation.NewKeyFromFile(tr,
+		int64(conf.ghApp.appID),
+		int64(conf.ghApp.installationID),
+		conf.ghApp.privateKeyPath,
+	)
+	if err != nil {
+		slog.Error("Cannot create GitHub transport", "err", err)
+	}
+	_ = github.NewClient(&http.Client{Transport: itr})
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		slog.Debug("HTTP request received")
 		payload, err := github.ValidatePayload(r,[]byte(conf.ghApp.webhookSecret))
@@ -99,26 +115,14 @@ func main() {
 		}
 
 		slog.Debug("event received", "event", event)
-		// switch event := event.(type) {
-		// case *github.CommitCommentEvent:
-		// 	processCommitCommentEvent(event)
-		// case *github.CreateEvent:
-		// 	processCreateEvent(event)
-		// }
+		switch event := event.(type) {
+		case *github.CheckSuiteEvent:
+			slog.Debug("CheckSuiteEvent received", "repo", event.GetRepo())
+			// ctx, cancel := context.WithTimeout(context.Background(), 20 * time.Second)
+			// defer cancel()
+			// client.Checks.CreateCheckRun(ctx, *event.Repo.Owner.Login)
+		}
 	})
-
-	tr := http.DefaultTransport
-
-	itr, err := ghinstallation.NewKeyFromFile(tr,
-		int64(conf.ghApp.appID),
-		int64(conf.ghApp.installationID),
-		conf.ghApp.privateKeyPath,
-	)
-	if err != nil {
-		slog.Error("Cannot create GitHub transport", "err", err)
-	}
-	_ = github.NewClient(&http.Client{Transport: itr})
-
 	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.httpServerPort), nil)
 	slog.Error("Cannot start HTTP server", "err", err)
 }
