@@ -75,14 +75,45 @@ func getConfig() (*config, error) {
 	}, nil
 }
 
-func checkPipelineInProgress(client *github.Client, repo *github.Repository, checkRun *github.CheckRun) error {
+func checkPipelineCompleted(client *github.Client, repo *github.Repository, checkRun *github.CheckRun) {
+	slog.Debug("checkPipelineCompleted")
+	time.Sleep(5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	status := "completed"
+	conclusion := "success"
+	title := "Tekton CI check completed"
+	summary := "Tekton CI check in progress"
+	_, _, err := client.Checks.UpdateCheckRun(ctx,
+		*repo.Owner.Login,
+		*repo.Name,
+		checkRun.GetID(),
+		github.UpdateCheckRunOptions{
+			Name:   "Tekton CI check",
+			Status: &status,
+			Conclusion: &conclusion,
+			Output: &github.CheckRunOutput{
+				Title:   &title,
+				Summary: &summary,
+			},
+		},
+	)
+	if err != nil {
+		slog.Error("cannot update checkrun", "err", err)
+	}
+}
+
+
+
+func checkPipelineInProgress(client *github.Client, repo *github.Repository, checkRun *github.CheckRun) {
+	slog.Debug("checkPipelineInProgress")
 	time.Sleep(5 * time.Second)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	status := "in_progress"
 	title := "Tekton CI check"
 	summary := "Tekton CI check in progress"
-	_, _, err := client.Checks.UpdateCheckRun(ctx,
+	checkRun, _, err := client.Checks.UpdateCheckRun(ctx,
 		*repo.Owner.Login,
 		*repo.Name,
 		checkRun.GetID(),
@@ -96,9 +127,9 @@ func checkPipelineInProgress(client *github.Client, repo *github.Repository, che
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("cannot update checkrun: %w", err)
+		slog.Error("cannot update checkrun", "err", err)
 	}
-	return nil
+	checkPipelineCompleted(client, repo, checkRun)
 }
 
 func checkPipeline(ctx context.Context, client *github.Client, repo *github.Repository, cSuite *github.CheckSuite) error {
