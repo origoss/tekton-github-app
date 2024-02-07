@@ -1,0 +1,5 @@
+*~
+/.direnv/
+/result
+/tekton_github_app
+/tekton-ci-github-app.2024-02-07.private-key.pem
