@@ -121,6 +121,7 @@ func main() {
 			defer cancel()
 			status := "queued"
 			title := "Tekton CI check"
+			summary := "Tekton CI summary"
 			_, _, err := client.Checks.CreateCheckRun(ctx,
 				*repo.Owner.Login,
 				*repo.Name,
@@ -131,6 +132,7 @@ func main() {
 					StartedAt: &github.Timestamp{Time: time.Now()},
 					Output: &github.CheckRunOutput{
 						Title: &title,
+						Summary: &summary,
 					},
 				})
 			if err != nil {
