@@ -1,14 +1,14 @@
 package main
 
 import (
-	// "context"
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
-	// "time"
+	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v58/github"
@@ -86,7 +86,6 @@ func main() {
 	}
 	conf.logValues()
 
-
 	tr := http.DefaultTransport
 
 	itr, err := ghinstallation.NewKeyFromFile(tr,
@@ -97,11 +96,11 @@ func main() {
 	if err != nil {
 		slog.Error("Cannot create GitHub transport", "err", err)
 	}
-	_ = github.NewClient(&http.Client{Transport: itr})
+	client := github.NewClient(&http.Client{Transport: itr})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		slog.Debug("HTTP request received")
-		payload, err := github.ValidatePayload(r,[]byte(conf.ghApp.webhookSecret))
+		payload, err := github.ValidatePayload(r, []byte(conf.ghApp.webhookSecret))
 		if err != nil {
 			slog.Warn("Invalid payload", "err", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -117,10 +116,25 @@ func main() {
 		slog.Debug("event received", "event", event)
 		switch event := event.(type) {
 		case *github.CheckSuiteEvent:
-			slog.Debug("CheckSuiteEvent received", "repo", event.GetRepo())
-			// ctx, cancel := context.WithTimeout(context.Background(), 20 * time.Second)
-			// defer cancel()
-			// client.Checks.CreateCheckRun(ctx, *event.Repo.Owner.Login)
+			repo := event.GetRepo()
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			status := "queued"
+			_, _, err := client.Checks.CreateCheckRun(ctx,
+				*repo.Owner.Login,
+				*repo.Name,
+				github.CreateCheckRunOptions{
+					Name:      "Tekton CI check",
+					HeadSHA:   *event.CheckSuite.HeadSHA,
+					Status:    &status,
+					StartedAt: &github.Timestamp{Time: time.Now()},
+					Output:    &github.CheckRunOutput{},
+				})
+			if err != nil {
+				slog.Warn("Cannot create checkrun", "err", err)
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
 		}
 	})
 	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.httpServerPort), nil)
