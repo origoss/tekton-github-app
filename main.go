@@ -120,6 +120,7 @@ func main() {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 			status := "queued"
+			title := "Tekton CI check"
 			_, _, err := client.Checks.CreateCheckRun(ctx,
 				*repo.Owner.Login,
 				*repo.Name,
@@ -128,7 +129,9 @@ func main() {
 					HeadSHA:   *event.CheckSuite.HeadSHA,
 					Status:    &status,
 					StartedAt: &github.Timestamp{Time: time.Now()},
-					Output:    &github.CheckRunOutput{},
+					Output: &github.CheckRunOutput{
+						Title: &title,
+					},
 				})
 			if err != nil {
 				slog.Warn("Cannot create checkrun", "err", err)
