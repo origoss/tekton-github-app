@@ -75,11 +75,37 @@ func getConfig() (*config, error) {
 	}, nil
 }
 
+func checkPipelineInProgress(client *github.Client, repo *github.Repository, checkRun *github.CheckRun) error {
+	time.Sleep(5 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	status := "in_progress"
+	title := "Tekton CI check"
+	summary := "Tekton CI check in progress"
+	_, _, err := client.Checks.UpdateCheckRun(ctx,
+		*repo.Owner.Login,
+		*repo.Name,
+		checkRun.GetID(),
+		github.UpdateCheckRunOptions{
+			Name:   "Tekton CI check",
+			Status: &status,
+			Output: &github.CheckRunOutput{
+				Title:   &title,
+				Summary: &summary,
+			},
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("cannot update checkrun: %w", err)
+	}
+	return nil
+}
+
 func checkPipeline(ctx context.Context, client *github.Client, repo *github.Repository, cSuite *github.CheckSuite) error {
 	status := "queued"
 	title := "Tekton CI check"
 	summary := "Tekton CI summary"
-	_, _, err := client.Checks.CreateCheckRun(ctx,
+	checkRun, _, err := client.Checks.CreateCheckRun(ctx,
 		*repo.Owner.Login,
 		*repo.Name,
 		github.CreateCheckRunOptions{
@@ -95,6 +121,7 @@ func checkPipeline(ctx context.Context, client *github.Client, repo *github.Repo
 	if err != nil {
 		return fmt.Errorf("cannot create checkrun: %w", err)
 	}
+	go checkPipelineInProgress(client, repo, checkRun)
 	return nil
 }
 
