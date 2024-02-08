@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v58/github"
 )
 
@@ -24,15 +23,7 @@ const (
 	gh_app_webhook_secret_name   = "GH_APP_WEBHOOK_SECRET"
 )
 
-type ghApp struct {
-	privateKeyPath string
-	appID          int64
-	installationID int64
-	webhookSecret  string
-}
-
 type config struct {
-	httpServerPort int
 	ghApp
 }
 
@@ -65,12 +56,12 @@ func getConfig() (*config, error) {
 		return nil, fmt.Errorf("Cannot parse the %s environment variable to int: %w", gh_app_installation_id_name, err)
 	}
 	return &config{
-		httpServerPort: httpServerPort,
 		ghApp: ghApp{
 			privateKeyPath: os.Getenv(gh_app_private_key_path_name),
 			appID:          appID,
 			installationID: installationID,
 			webhookSecret:  os.Getenv(gh_app_webhook_secret_name),
+			httpServerPort: httpServerPort,
 		},
 	}, nil
 }
@@ -89,8 +80,8 @@ func checkPipelineCompleted(client *github.Client, repo *github.Repository, chec
 		*repo.Name,
 		checkRun.GetID(),
 		github.UpdateCheckRunOptions{
-			Name:   "Tekton CI check",
-			Status: &status,
+			Name:       "Tekton CI check",
+			Status:     &status,
 			Conclusion: &conclusion,
 			Output: &github.CheckRunOutput{
 				Title:   &title,
@@ -102,8 +93,6 @@ func checkPipelineCompleted(client *github.Client, repo *github.Repository, chec
 		slog.Error("cannot update checkrun", "err", err)
 	}
 }
-
-
 
 func checkPipelineInProgress(client *github.Client, repo *github.Repository, checkRun *github.CheckRun) {
 	slog.Debug("checkPipelineInProgress")
@@ -167,46 +156,7 @@ func main() {
 	}
 	conf.logValues()
 
-	tr := http.DefaultTransport
-
-	itr, err := ghinstallation.NewKeyFromFile(tr,
-		conf.ghApp.appID,
-		conf.ghApp.installationID,
-		conf.ghApp.privateKeyPath,
-	)
-	if err != nil {
-		slog.Error("Cannot create GitHub transport", "err", err)
-	}
-	client := github.NewClient(&http.Client{Transport: itr})
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		slog.Debug("HTTP request received")
-		payload, err := github.ValidatePayload(r, []byte(conf.ghApp.webhookSecret))
-		if err != nil {
-			slog.Error("Invalid payload", "err", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		event, err := github.ParseWebHook(github.WebHookType(r), payload)
-		if err != nil {
-			slog.Error("Webhook event cannot be parsed", "err", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		slog.Debug("event received", "event", event)
-		switch event := event.(type) {
-		case *github.CheckSuiteEvent:
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-			defer cancel()
-			err := checkPipeline(ctx, client, event.GetRepo(), event.CheckSuite)
-			if err != nil {
-				slog.Error("checkPipeline failed", "err", err)
-				http.Error(w, err.Error(), http.StatusServiceUnavailable)
-				return
-			}
-		}
-	})
+	newGh(&conf.ghApp)
 	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.httpServerPort), nil)
 	slog.Error("Cannot start HTTP server", "err", err)
 }
