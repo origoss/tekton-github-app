@@ -36,7 +36,7 @@ type checkrunOpts struct {
 	name    string
 	title   string
 	summary string
-	conclusion string
+	conclusion *string
 	status  string
 	id int64
 	*checkSuite
@@ -72,7 +72,7 @@ func (gh *gh) updateCheckRun(ctx context.Context, opts *checkrunOpts) error {
 		github.UpdateCheckRunOptions{
 			Name:      opts.repoName,
 			Status:    &opts.status,
-			Conclusion: &opts.conclusion,
+			Conclusion: opts.conclusion,
 			Output: &github.CheckRunOutput{
 				Title:   &opts.title,
 				Summary: &opts.summary,
