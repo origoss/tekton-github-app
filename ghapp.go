@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -24,6 +25,63 @@ type ghApp struct {
 type gh struct {
 	client *github.Client
 	conf   *ghApp
+	tekton *tekton
+}
+
+func (gh *gh) registerTekton(t *tekton) {
+	gh.tekton = t
+}
+
+type checkrunOpts struct {
+	name    string
+	title   string
+	summary string
+	conclusion string
+	status  string
+	id int64
+	*checkSuite
+}
+
+func (gh *gh) createCheckRun(ctx context.Context, opts *checkrunOpts) (int64, error) {
+	status := "queued"
+	checkRun, _, err := gh.client.Checks.CreateCheckRun(ctx,
+		opts.repoOwner,
+		opts.repoName,
+		github.CreateCheckRunOptions{
+			Name:      opts.repoName,
+			HeadSHA:   opts.cSuiteHeadSHA,
+			Status:    &status,
+			StartedAt: &github.Timestamp{Time: time.Now()},
+			Output: &github.CheckRunOutput{
+				Title:   &opts.title,
+				Summary: &opts.summary,
+			},
+		})
+	if err != nil {
+		return -1, fmt.Errorf("cannot create checkrun: %w", err)
+	}
+	opts.id = checkRun.GetID()
+	return opts.id, nil
+}
+
+func (gh *gh) updateCheckRun(ctx context.Context, opts *checkrunOpts) error {
+	_, _, err := gh.client.Checks.UpdateCheckRun(ctx,
+		opts.repoOwner,
+		opts.repoName,
+		opts.id,
+		github.UpdateCheckRunOptions{
+			Name:      opts.repoName,
+			Status:    &opts.status,
+			Conclusion: &opts.conclusion,
+			Output: &github.CheckRunOutput{
+				Title:   &opts.title,
+				Summary: &opts.summary,
+			},
+		})
+	if err != nil {
+		return fmt.Errorf("cannot update checkrun: %w", err)
+	}
+	return nil
 }
 
 func (gh *gh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,13 +103,20 @@ func (gh *gh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("event received", "event", event)
 	switch event := event.(type) {
 	case *github.CheckSuiteEvent:
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		err := checkPipeline(ctx, gh.client, event.GetRepo(), event.CheckSuite)
-		if err != nil {
-			slog.Error("checkPipeline failed", "err", err)
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-			return
+		if gh.tekton != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			repo := event.GetRepo()
+			err := gh.tekton.handleCheckSuiteEvent(ctx, &checkSuite{
+				cSuiteHeadSHA: *event.GetCheckSuite().HeadSHA,
+				repoOwner:     *repo.Owner.Login,
+				repoName:      *repo.Name,
+			})
+			if err != nil {
+				slog.Error("error handling CheckSuite event", "err", err)
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
 		}
 	}
 }
