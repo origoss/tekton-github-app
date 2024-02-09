@@ -194,6 +194,6 @@ type CheckRunCreatedResponseBody struct {
 }
 
 type CheckSuiteCreatedBody struct {
-	Event      string `json:"id"`
+	Event      string `json:"event"`
 	CheckSuite `json:"check-suite"`
 }
