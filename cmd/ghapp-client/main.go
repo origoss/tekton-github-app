@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -110,5 +111,24 @@ func main() {
 			"status", resp.Status,
 			"body", resp.Body)
 		panic(nil)
+	}
+	if event.Type == tektonapi.TektonEventCreateCheckRun {
+		decoder := json.NewDecoder(resp.Body)
+		respBody := tektonapi.CheckRunCreatedResponseBody{}
+		err = decoder.Decode(&respBody)
+		if err != nil {
+			slog.Error("cannot decode response body",
+				"err", err,
+			)
+		}
+		f, err := os.Create(os.Getenv("RESULT_PATH"))
+		if err != nil {
+			slog.Error("cannot create result path",
+				"err", err,
+				"RESULT_PATH", os.Getenv("RESULT_PATH"),
+			)
+		}
+		defer f.Close()
+		fmt.Fprint(f, respBody.ID)
 	}
 }
