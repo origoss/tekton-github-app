@@ -32,13 +32,13 @@ func (t *tekton) registerGH(gh *gh) {
 func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSuite) error {
 	slog.Debug("handleCheckSuiteEvent", "cs", cs)
 	buffer := bytes.NewBuffer(nil)
-	decoder := json.NewDecoder(buffer)
-	err := decoder.Decode(&tektonapi.CheckSuiteCreatedBody{
+	encoder := json.NewEncoder(buffer)
+	err := encoder.Encode(tektonapi.CheckSuiteCreatedBody{
 		Event: "check-suite-created",
 		CheckSuite: cs,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("error encoding body: %w", err)
 	}
 	req, err := http.NewRequest(http.MethodGet, t.conf.tektonUrl, buffer)
 	if err != nil {
