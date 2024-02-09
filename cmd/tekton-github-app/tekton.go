@@ -32,7 +32,7 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 	slog.Debug("handleCheckSuiteEvent", "cs", cs)
 	buffer := bytes.NewBuffer(nil)
 	decoder := json.NewDecoder(buffer)
-	err := decoder.Decode(tektonapi.CheckSuiteCreatedBody{
+	err := decoder.Decode(&tektonapi.CheckSuiteCreatedBody{
 		Event: "check-suite-created",
 		CheckSuite: cs,
 	})
