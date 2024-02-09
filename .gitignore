@@ -3,3 +3,6 @@
 /result
 /tekton_github_app
 /tekton-ci-github-app.2024-02-07.private-key.pem
+/cmd/tekton-github-app/tekton-github-app
+/tekton-url
+/cmd/tekton-github-app/result

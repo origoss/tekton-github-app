@@ -1,4 +1,4 @@
-module tekton-github-app
+module github.com/origoss/tekton-github-app
 
 go 1.21.6
 

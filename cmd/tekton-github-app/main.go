@@ -17,10 +17,12 @@ const (
 	gh_app_id_name               = "GH_APP_ID"
 	gh_app_installation_id_name  = "GH_APP_INSTALLATION_ID"
 	gh_app_webhook_secret_name   = "GH_APP_WEBHOOK_SECRET"
+	tekton_url_name              = "TEKTON_URL"
 )
 
 type config struct {
 	ghApp
+	tektonConfig
 }
 
 func (c *config) logValues() {
@@ -29,6 +31,7 @@ func (c *config) logValues() {
 	slog.Debug("configuration parsed", gh_app_id_name, c.ghApp.appID)
 	slog.Debug("configuration parsed", gh_app_installation_id_name, c.ghApp.installationID)
 	slog.Debug("configuration parsed", gh_app_webhook_secret_name, c.ghApp.webhookSecret)
+	slog.Debug("configuration parsed", tekton_url_name, c.tektonConfig.tektonUrl)
 }
 
 func init() {
@@ -58,6 +61,9 @@ func getConfig() (*config, error) {
 			installationID: installationID,
 			webhookSecret:  os.Getenv(gh_app_webhook_secret_name),
 			httpServerPort: httpServerPort,
+		},
+		tektonConfig: tektonConfig{
+			tektonUrl: os.Getenv(tekton_url_name),
 		},
 	}, nil
 }
@@ -158,7 +164,7 @@ func main() {
 	conf.logValues()
 
 	gh := newGh(&conf.ghApp)
-	t := newTekton()
+	t := newTekton(&conf.tektonConfig)
 	connect(gh, t)
 	err = http.ListenAndServe(fmt.Sprintf(":%d", conf.httpServerPort), nil)
 	slog.Error("Cannot start HTTP server", "err", err)

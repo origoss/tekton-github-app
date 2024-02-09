@@ -9,6 +9,7 @@ import (
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v58/github"
+	"github.com/origoss/tekton-github-app/pkg/tekton-api"
 )
 
 // This file contains the code for maintaining the connection towards
@@ -32,50 +33,44 @@ func (gh *gh) registerTekton(t *tekton) {
 	gh.tekton = t
 }
 
-type checkrunOpts struct {
-	name    string
-	title   string
-	summary string
-	conclusion *string
-	status  string
-	id int64
-	*checkSuite
-}
-
-func (gh *gh) createCheckRun(ctx context.Context, opts *checkrunOpts) (int64, error) {
-	status := "queued"
+func (gh *gh) createCheckRun(ctx context.Context, cs tektonapi.CheckSuite, cr tektonapi.CheckRun) (int64, error) {
+	status := cr.Status.String()
 	checkRun, _, err := gh.client.Checks.CreateCheckRun(ctx,
-		opts.repoOwner,
-		opts.repoName,
+		cs.RepoOwner,
+		cs.RepoName,
 		github.CreateCheckRunOptions{
-			Name:      opts.repoName,
-			HeadSHA:   opts.cSuiteHeadSHA,
+			HeadSHA:   cs.HeadSHA,
+			Name:      cr.Name,
 			Status:    &status,
 			StartedAt: &github.Timestamp{Time: time.Now()},
 			Output: &github.CheckRunOutput{
-				Title:   &opts.title,
-				Summary: &opts.summary,
+				Title:   &cr.Title,
+				Summary: &cr.Summary,
 			},
 		})
 	if err != nil {
 		return -1, fmt.Errorf("cannot create checkrun: %w", err)
 	}
-	opts.id = checkRun.GetID()
-	return opts.id, nil
+	return checkRun.GetID(), nil
 }
 
-func (gh *gh) updateCheckRun(ctx context.Context, opts *checkrunOpts) error {
+func (gh *gh) updateCheckRun(ctx context.Context, cs tektonapi.CheckSuite, cr tektonapi.CheckRun) error {
+	status := cr.Status.String()
+	var conclusion *string
+	if cr.Conclusion != nil {
+		*conclusion = cr.Conclusion.String()
+	}
 	_, _, err := gh.client.Checks.UpdateCheckRun(ctx,
-		opts.repoOwner,
-		opts.repoName,
-		opts.id,
+		cs.RepoOwner,
+		cs.RepoName,
+		cr.ID,
 		github.UpdateCheckRunOptions{
-			Name:      opts.repoName,
-			Status:    &opts.status,
-			Conclusion: opts.conclusion,
+			Name:       cr.Name,
+			Status:     &status,
+			Conclusion: conclusion,
 			Output: &github.CheckRunOutput{
-				Title:   &opts.title,
-				Summary: &opts.summary,
+				Title:   &cr.Title,
+				Summary: &cr.Summary,
 			},
 		})
 	if err != nil {
@@ -107,10 +102,10 @@ func (gh *gh) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 			repo := event.GetRepo()
-			err := gh.tekton.handleCheckSuiteEvent(ctx, &checkSuite{
-				cSuiteHeadSHA: *event.GetCheckSuite().HeadSHA,
-				repoOwner:     *repo.Owner.Login,
-				repoName:      *repo.Name,
+			err := gh.tekton.handleCheckSuiteEvent(ctx, tektonapi.CheckSuite{
+				HeadSHA:   *event.GetCheckSuite().HeadSHA,
+				RepoOwner: *repo.Owner.Login,
+				RepoName:  *repo.Name,
 			})
 			if err != nil {
 				slog.Error("error handling CheckSuite event", "err", err)
