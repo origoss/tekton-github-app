@@ -92,7 +92,7 @@ func main() {
 		)
 		panic(err)
 	}
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	slog.Debug("Sending event request to ghapp",
 		"event", event,
 	)

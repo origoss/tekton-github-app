@@ -55,6 +55,7 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 	if err != nil {
 		return fmt.Errorf("error sending request: %w", err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode > 299 {
 		slog.Error("invalid status code received from tekton",
 			"status", resp.Status,
