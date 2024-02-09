@@ -6,3 +6,4 @@
 /cmd/tekton-github-app/tekton-github-app
 /tekton-url
 /cmd/tekton-github-app/result
+/registry-auth.json
