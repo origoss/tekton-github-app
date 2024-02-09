@@ -13,7 +13,8 @@
         tekton-github-app = pkgs.buildGoModule {
           pname = "tekton-github-app";
           version = "0.0.1";
-          src = ./.;
+          src = pkgs.lib.sourceFilesBySuffices ./. [ ".go" ".mod" ];
+          subPackages = [ "cmd/tekton-github-app" "cmd/ghapp-client" ];
           vendorHash = "sha256-429PH9/M/NhNtj3a5Udkx+UawidQZzRG1tQzGfh674o=";
           # vendorHash = pkgs.lib.fakeHash;
         };
@@ -21,11 +22,16 @@
           type = "app";
           program = "${tekton-github-app}/bin/tekton-github-app";
         };
+        tekton-github-client-app = {
+          type = "app";
+          program = "${tekton-github-app}/bin/ghapp-client";
+        };
       in {
         devShells.default = pkgs.mkShell { packages = with pkgs; [ go ]; };
         packages.default = tekton-github-app;
         packages.tekton-github-app = tekton-github-app;
         apps.default = tekton-github-app-app;
         apps.tekton-github-app = tekton-github-app-app;
+        apps.client = tekton-github-client-app;
       });
 }
