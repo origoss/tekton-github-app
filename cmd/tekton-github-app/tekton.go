@@ -59,6 +59,7 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 		slog.Error("invalid status code received from tekton",
 			"status", resp.Status,
 			"body", resp.Body)
+		return fmt.Errorf("invalid status code from tekton")
 	}
 	return nil
 }

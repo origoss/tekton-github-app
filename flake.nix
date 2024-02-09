@@ -26,10 +26,28 @@
           type = "app";
           program = "${tekton-github-app}/bin/ghapp-client";
         };
+        client-image = pkgs.dockerTools.buildLayeredImage {
+          name = "ghapp-client";
+          tag = "latest";
+          contents = [ pkgs.cacert tekton-github-app ];
+          config = {
+            EntryPoint = [ "${tekton-github-app}/bin/ghapp-client"];
+          };
+        };
+        upload-client-image = pkgs.writeShellApplication {
+          name = "upload-client-image";
+          runtimeInputs = [ pkgs.skopeo ];
+          text = ''
+            echo "Uploading client image to ghcr"
+            skopeo login --username skopeo --password "$GHCR_PAT" ghcr.io
+            skopeo copy docker-archive:${client-image} docker://ghcr.io/origoss/tekton-github-app:latest --insecure-policy
+          '';
+        };
       in {
-        devShells.default = pkgs.mkShell { packages = with pkgs; [ go ]; };
+        devShells.default = pkgs.mkShell { packages = [ pkgs.go upload-client-image ]; };
         packages.default = tekton-github-app;
         packages.tekton-github-app = tekton-github-app;
+        packages.client-image = client-image;
         apps.default = tekton-github-app-app;
         apps.tekton-github-app = tekton-github-app-app;
         apps.client = tekton-github-client-app;
