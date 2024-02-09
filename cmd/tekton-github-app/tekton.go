@@ -71,6 +71,8 @@ func (t *tekton) handleTektonEvents(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&event)
 	if err != nil {
 		slog.Error("error decoding tekton event body", "err", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	slog.Debug("body parsed", "type", event.Type)
 	ctx, cancel := context.WithTimeout(context.Background(), 20 * time.Second)

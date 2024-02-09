@@ -85,7 +85,7 @@ func main() {
 		)
 		panic(err)
 	}
-	req, err := http.NewRequest(http.MethodGet, os.Getenv("GHAPP_URL"), buffer)
+	req, err := http.NewRequest(http.MethodPost, os.Getenv("GHAPP_URL"), buffer)
 	if err != nil {
 		slog.Error("error creating new request",
 			"err", err,
