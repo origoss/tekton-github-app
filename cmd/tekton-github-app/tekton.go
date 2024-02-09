@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -41,13 +42,13 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 	}
 	req, err := http.NewRequest(http.MethodGet, t.conf.tektonUrl, buffer)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	slog.Debug("sending request to tekton")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("error sending request: %w", err)
 	}
 	if resp.StatusCode > 299 {
 		slog.Error("invalid status code received from tekton",
