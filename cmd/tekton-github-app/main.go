@@ -18,6 +18,8 @@ const (
 	gh_app_installation_id_name  = "GH_APP_INSTALLATION_ID"
 	gh_app_webhook_secret_name   = "GH_APP_WEBHOOK_SECRET"
 	tekton_url_name              = "TEKTON_URL"
+	tekton_user_name             = "TEKTON_USERNAME"
+	tekton_password              = "TEKTON_PASSWORD"
 )
 
 type config struct {
@@ -32,6 +34,8 @@ func (c *config) logValues() {
 	slog.Debug("configuration parsed", gh_app_installation_id_name, c.ghApp.installationID)
 	slog.Debug("configuration parsed", gh_app_webhook_secret_name, c.ghApp.webhookSecret)
 	slog.Debug("configuration parsed", tekton_url_name, c.tektonConfig.tektonUrl)
+	slog.Debug("configuration parsed", tekton_user_name, c.tektonConfig.tektonUser)
+	slog.Debug("configuration parsed", tekton_password, c.tektonConfig.tektonPassword)
 }
 
 func init() {
@@ -64,6 +68,8 @@ func getConfig() (*config, error) {
 		},
 		tektonConfig: tektonConfig{
 			tektonUrl: os.Getenv(tekton_url_name),
+			tektonUser: os.Getenv(tekton_user_name),
+			tektonPassword: os.Getenv(tekton_password),
 		},
 	}, nil
 }

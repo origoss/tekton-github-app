@@ -17,6 +17,8 @@ import (
 
 type tektonConfig struct {
 	tektonUrl string
+	tektonUser string
+	tektonPassword string
 }
 
 type tekton struct {
@@ -45,6 +47,9 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 		return fmt.Errorf("error creating request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
+	if t.conf.tektonUser != "" {
+		req.SetBasicAuth(t.conf.tektonUser, t.conf.tektonPassword)
+	}
 	slog.Debug("sending request to tekton")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
