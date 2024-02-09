@@ -42,11 +42,11 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 	if err != nil {
 		return fmt.Errorf("error encoding body: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodGet, t.conf.tektonUrl, buffer)
+	req, err := http.NewRequest(http.MethodPost, t.conf.tektonUrl, buffer)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
-	req.Header.Add("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	if t.conf.tektonUser != "" {
 		req.SetBasicAuth(t.conf.tektonUser, t.conf.tektonPassword)
 	}

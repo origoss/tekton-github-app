@@ -77,7 +77,7 @@ func main() {
 
 	buffer := bytes.NewBuffer(nil)
 	encoder := json.NewEncoder(buffer)
-	err = encoder.Encode(event)
+	err = encoder.Encode(&event)
 	if err != nil {
 		slog.Error("error encoding event to json",
 			"event", event,
