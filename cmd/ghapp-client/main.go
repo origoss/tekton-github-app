@@ -12,7 +12,17 @@ import (
 	tektonapi "github.com/origoss/tekton-github-app/pkg/tekton-api"
 )
 
+var logLevel = new(slog.LevelVar)
+
+func init() {
+	if strings.ToLower(os.Getenv("LOG_LEVEL")) == "debug" {
+		logLevel.Set(slog.LevelDebug)
+	}
+}
+
 func main() {
+	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel})
+	slog.SetDefault(slog.New(h))
 	slog.Info("tekton github app client invoked")
 	event := &tektonapi.TektonEvent{
 		CheckSuite: tektonapi.CheckSuite{
@@ -83,7 +93,9 @@ func main() {
 		panic(err)
 	}
 	req.Header.Add("Content-Type", "application/json")
-	slog.Debug("Sending event request to ghapp")
+	slog.Debug("Sending event request to ghapp",
+		"event", event,
+	)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Error("error sending event to ghapp",
