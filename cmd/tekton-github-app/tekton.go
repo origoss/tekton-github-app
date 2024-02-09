@@ -67,7 +67,7 @@ func (t *tekton) handleCheckSuiteEvent(ctx context.Context, cs tektonapi.CheckSu
 func (t *tekton) handleTektonEvents(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("handleTektonEvents invoked")
 	decoder := json.NewDecoder(r.Body)
-	event := &tektonapi.TektonEvent{}
+	event := tektonapi.TektonEvent{}
 	err := decoder.Decode(&event)
 	if err != nil {
 		slog.Error("error decoding tekton event body", "err", err)
