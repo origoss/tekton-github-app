@@ -72,7 +72,7 @@ func ParseCheckRunStatus(s string) (CheckRunStatus, error) {
 		return CheckRunStatusQueued, nil
 	case "in_progress":
 		return CheckRunStatusInProgress, nil
-	case "success":
+	case "completed":
 		return CheckRunStatusSuccess, nil
 	default:
 		return CheckRunStatusInvalid, fmt.Errorf("invalid CheckRunStatus: %s", s)
@@ -86,7 +86,7 @@ func (crs CheckRunStatus) String() string {
 	case CheckRunStatusInProgress:
 		return "in_progress"
 	case CheckRunStatusSuccess:
-		return "success"
+		return "completed"
 	default:
 		panic(fmt.Sprintf("invalid CheckRunStatus: %d", crs))
 	}
