@@ -104,6 +104,7 @@ func main() {
 		)
 		panic(err)
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode > 299 {
 		slog.Error("invalid status code received from ghapp",
 			"status", resp.Status,
