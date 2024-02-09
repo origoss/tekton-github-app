@@ -56,9 +56,10 @@ func (gh *gh) createCheckRun(ctx context.Context, cs tektonapi.CheckSuite, cr te
 
 func (gh *gh) updateCheckRun(ctx context.Context, cs tektonapi.CheckSuite, cr tektonapi.CheckRun) error {
 	status := cr.Status.String()
-	var conclusion string
+	var conclusion *string
 	if cr.Conclusion != nil {
-		conclusion = cr.Conclusion.String()
+		c := cr.Conclusion.String()
+		conclusion = &c
 	}
 	_, _, err := gh.client.Checks.UpdateCheckRun(ctx,
 		cs.RepoOwner,
@@ -67,7 +68,7 @@ func (gh *gh) updateCheckRun(ctx context.Context, cs tektonapi.CheckSuite, cr te
 		github.UpdateCheckRunOptions{
 			Name:       cr.Name,
 			Status:     &status,
-			Conclusion: &conclusion,
+			Conclusion: conclusion,
 			Output: &github.CheckRunOutput{
 				Title:   &cr.Title,
 				Summary: &cr.Summary,
